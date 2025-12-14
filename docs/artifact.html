@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>完整銷售預測系統</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 32px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 16px;
+        }
+
+        .icon {
+            width: 40px;
+            height: 40px;
+        }
+
+        .nav-tabs {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #f0f0f0;
+            color: #666;
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .tab-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .tab-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .content-section {
+            display: none;
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        .content-section.active {
+            display: block;
+        }
+
+        /* 即時預測樣式 */
+        .instant-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .input-card, .result-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 3px 15px rgba(0,0,0,0.1);
+        }
+
+        .card-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 8px;
+        }
+
+        .input-field, .select-field {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: all 0.3s;
+        }
+
+        .input-field:focus, .select-field:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 15px;
+            background: #f9fafb;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 12px;
+        }
+
+        .checkbox-group:hover {
+            background: #f3f4f6;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .checkbox-info {
+            flex: 1;
+        }
+
+        .checkbox-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 3px;
+        }
+
+        .checkbox-desc {
+            font-size: 13px;
+            color: #6b7280;
+        }
+
+        .predict-btn {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-size: 17px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .predict-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .no-result {
+            text-align: center;
+            padding: 60px 20px;
+            color: #9ca3af;
+        }
+
+        .no-result svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+
+        .result-main {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .result-label {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 10px;
+        }
+
+        .result-value {
+            font-size: 48px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .result-unit {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .confidence-box {
+            background: #eff6ff;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .confidence-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1e40af;
+            margin-bottom: 12px;
+        }
+
+        .confidence-range {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .bound-value {
+            text-align: center;
+        }
+
+        .bound-label {
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 5px;
+        }
+
+        .bound-number {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1e40af;
+        }
+
+        .factors-list {
+            margin-top: 20px;
+        }
+
+        .factor-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: #f9fafb;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .factor-name {
+            font-weight: 500;
+            color: #374151;
+        }
+
+        .factor-badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .factor-positive {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .factor-neutral {
+            background: #e5e7eb;
+            color: #4b5563;
+        }
+
+        /* 批量預測樣式 */
+        .upload-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .upload-box {
+            border: 3px dashed #ddd;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #fafafa;
+        }
+
+        .upload-box:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .upload-box.uploaded {
+            border-color: #10b981;
+            background: #f0fdf4;
+        }
+
+        .upload-box input[type="file"] {
+            display: none;
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+            color: #999;
+        }
+
+        .upload-box.uploaded .upload-icon {
+            color: #10b981;
+        }
+
+        .upload-label {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .upload-status {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .stat-label {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 10px;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .stat-desc {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        .chart-container {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            box-shadow: 0 3px 15px rgba(0,0,0,0.1);
+        }
+
+        .chart-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .alert {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .alert-title {
+            font-weight: 600;
+            color: #92400e;
+            margin-bottom: 5px;
+        }
+
+        .alert-text {
+            color: #78350f;
+            font-size: 14px;
+        }
+
+        .predictions-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .predictions-table th,
+        .predictions-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .predictions-table th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 600;
+        }
+
+        .predictions-table tr:hover {
+            background: #f9fafb;
+        }
+
+        .table-container {
+            max-height: 500px;
+            overflow-y: auto;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .feature-list {
+            list-style: none;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .feature-name {
+            width: 250px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .feature-bar-container {
+            flex: 1;
+            background: #f0f0f0;
+            height: 30px;
+            border-radius: 15px;
+            overflow: hidden;
+        }
+
+        .feature-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 10px;
+            transition: width 0.5s ease;
+        }
+
+        .feature-value {
+            color: white;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border-left: 4px solid #f59e0b;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 30px;
+        }
+
+        .info-title {
+            font-weight: 700;
+            color: #92400e;
+            margin-bottom: 12px;
+            font-size: 16px;
+        }
+
+        .info-list {
+            list-style: none;
+        }
+
+        .info-list li {
+            color: #78350f;
+            margin-bottom: 8px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                </svg>
+                店鋪銷售預測系統
+            </h1>
+            <p>支援即時單筆預測與批量資料分析的智能銷售預測平台</p>
+        </div>
+
+        <div class="nav-tabs">
+            <button class="tab-btn active" onclick="showTab('instant')">⚡ 即時預測</button>
+            <button class="tab-btn" onclick="showTab('batch')">📤 批量預測</button>
+            <button class="tab-btn" id="resultsTab" onclick="showTab('results')" disabled>📊 分析結果</button>
+        </div>
+
+        <!-- 即時預測頁面 -->
+        <div id="instantSection" class="content-section active">
+            <div class="instant-grid">
+                <div class="input-card">
+                    <h2 class="card-title">輸入資訊</h2>
+                    
+                    <div class="input-group">
+                        <label class="input-label">
+                            🏪 商店編號
+                        </label>
+                        <select id="storeNumber" class="select-field">
+                            <option value="1">1 - Quito, Pichincha (Type D)</option>
+                            <option value="2">2 - Quito, Pichincha (Type D)</option>
+                            <option value="3">3 - Quito, Pichincha (Type D)</option>
+                            <option value="4">4 - Quito, Pichincha (Type D)</option>
+                            <option value="5">5 - Santo Domingo, Santo Domingo de los Tsachilas (Type D)</option>
+                            <option value="6">6 - Quito, Pichincha (Type D)</option>
+                            <option value="7">7 - Quito, Pichincha (Type D)</option>
+                            <option value="8">8 - Quito, Pichincha (Type D)</option>
+                            <option value="9">9 - Quito, Pichincha (Type B)</option>
+                            <option value="10">10 - Quito, Pichincha (Type C)</option>
+                            <option value="11">11 - Cayambe, Pichincha (Type B)</option>
+                            <option value="12">12 - Latacunga, Cotopaxi (Type C)</option>
+                            <option value="13">13 - Latacunga, Cotopaxi (Type C)</option>
+                            <option value="14">14 - Riobamba, Chimborazo (Type C)</option>
+                            <option value="15">15 - Ibarra, Imbabura (Type C)</option>
+                            <option value="16">16 - Santo Domingo, Santo Domingo de los Tsachilas (Type C)</option>
+                            <option value="17">17 - Quito, Pichincha (Type C)</option>
+                            <option value="18">18 - Quito, Pichincha (Type B)</option>
+                            <option value="19">19 - Guaranda, Bolivar (Type C)</option>
+                            <option value="20">20 - Quito, Pichincha (Type B)</option>
+                            <option value="21">21 - Santo Domingo, Santo Domingo de los Tsachilas (Type B)</option>
+                            <option value="22">22 - Puyo, Pastaza (Type C)</option>
+                            <option value="23">23 - Ambato, Tungurahua (Type D)</option>
+                            <option value="24">24 - Guayaquil, Guayas (Type D)</option>
+                            <option value="25">25 - Salinas, Santa Elena (Type D)</option>
+                            <option value="26">26 - Guayaquil, Guayas (Type D)</option>
+                            <option value="27">27 - Daule, Guayas (Type D)</option>
+                            <option value="28">28 - Guayaquil, Guayas (Type E)</option>
+                            <option value="29">29 - Guayaquil, Guayas (Type E)</option>
+                            <option value="30">30 - Guayaquil, Guayas (Type C)</option>
+                            <option value="31">31 - Babahoyo, Los Rios (Type B)</option>
+                            <option value="32">32 - Guayaquil, Guayas (Type C)</option>
+                            <option value="33">33 - Quevedo, Los Rios (Type C)</option>
+                            <option value="34">34 - Guayaquil, Guayas (Type B)</option>
+                            <option value="35">35 - Playas, Guayas (Type C)</option>
+                            <option value="36">36 - Libertad, Guayas (Type E)</option>
+                            <option value="37">37 - Cuenca, Azuay (Type D)</option>
+                            <option value="38">38 - Loja, Loja (Type D)</option>
+                            <option value="39">39 - Cuenca, Azuay (Type B)</option>
+                            <option value="40">40 - Machala, El Oro (Type C)</option>
+                            <option value="41">41 - Machala, El Oro (Type D)</option>
+                            <option value="42">42 - Cuenca, Azuay (Type D)</option>
+                            <option value="43">43 - Esmeraldas, Esmeraldas (Type E)</option>
+                            <option value="44">44 - Quito, Pichincha (Type A)</option>
+                            <option value="45">45 - Quito, Pichincha (Type A)</option>
+                            <option value="46">46 - Quito, Pichincha (Type A)</option>
+                            <option value="47">47 - Quito, Pichincha (Type A)</option>
+                            <option value="48">48 - Quito, Pichincha (Type A)</option>
+                            <option value="49">49 - Quito, Pichincha (Type A)</option>
+                            <option value="50">50 - Ambato, Tungurahua (Type A)</option>
+                            <option value="51">51 - Guayaquil, Guayas (Type A)</option>
+                            <option value="52">52 - Manta, Manabi (Type A)</option>
+                            <option value="53">53 - Manta, Manabi (Type D)</option>
+                            <option value="54">54 - El Carmen, Manabi (Type C)</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group">
+                        <label class="input-label">
+                            📦 產品類別
+                        </label>
+                        <select id="productFamily" class="select-field">
+                            <option value="雜貨一類">雜貨一類</option>
+                            <option value="飲料">飲料</option>
+                            <option value="麵包烘焙">麵包烘焙</option>
+                            <option value="蔬果">蔬果</option>
+                            <option value="乳製品">乳製品</option>
+                            <option value="清潔用品">清潔用品</option>
+                            <option value="肉類">肉類</option>
+                            <option value="冷凍食品">冷凍食品</option>
+                            <option value="個人護理">個人護理</option>
+                            <option value="海鮮">海鮮</option>
+                            <option value="家禽">家禽</option>
+                            <option value="即食食品">即食食品</option>
+                            <option value="汽車用品">汽車用品</option>
+                            <option value="文具辦公">文具辦公</option>
+                            <option value="3C電子">3C電子</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group">
+                        <label class="input-label">
+                            📅 日期
+                        </label>
+                        <input type="date" id="date" class="input-field">
+                        <p id="weekday" style="font-size: 13px; color: #6b7280; margin-top: 5px;"></p>
+                    </div>
+
+                    <div class="input-group">
+                        <label class="input-label">
+                            ⛽ 油價 (USD)
+                        </label>
+                        <input type="number" id="oilPrice" class="input-field" step="0.1" value="50" placeholder="50.0">
+                    </div>
+
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="onPromotion">
+                        <div class="checkbox-info">
+                            <div class="checkbox-title">促銷活動</div>
+                            <div class="checkbox-desc">產品是否在促銷中</div>
+                        </div>
+                    </label>
+
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="isHoliday">
+                        <div class="checkbox-info">
+                            <div class="checkbox-title">假日</div>
+                            <div class="checkbox-desc">是否為國定假日</div>
+                        </div>
+                    </label>
+
+                    <button class="predict-btn" onclick="calculateInstantPrediction()">
+                        🔮 預測銷售量
+                    </button>
+                </div>
+
+                <div class="result-card">
+                    <h2 class="card-title">預測結果</h2>
+                    
+                    <div id="noInstantResult" class="no-result">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <p>輸入資訊後點擊預測按鈕</p>
+                    </div>
+
+                    <div id="instantResultContent" style="display: none;">
+                        <div class="result-main">
+                            <div class="result-label">預測銷售量</div>
+                            <div class="result-value" id="salesAmount">0</div>
+                            <div class="result-unit">單位數量</div>
+                            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.3);">
+                                <small>信心水準: <span id="confidence">0</span>%</small>
+                            </div>
+                        </div>
+
+                        <div class="confidence-box">
+                            <div class="confidence-title">預測區間</div>
+                            <div class="confidence-range">
+                                <div class="bound-value">
+                                    <div class="bound-label">下限</div>
+                                    <div class="bound-number" id="lowerBound">0</div>
+                                </div>
+                                <div style="color: #9ca3af;">~</div>
+                                <div class="bound-value">
+                                    <div class="bound-label">上限</div>
+                                    <div class="bound-number" id="upperBound">0</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="factors-list">
+                            <div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 12px;">影響因素</div>
+                            <div id="factorsContainer"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <div class="info-title">💡 使用說明</div>
+                <ul class="info-list">
+                    <li>• <strong>商店編號:</strong> 輸入 1-54 之間的商店編號</li>
+                    <li>• <strong>產品類別:</strong> 選擇要預測的產品種類，不同類別有不同的銷售模式</li>
+                    <li>• <strong>促銷活動:</strong> 促銷期間通常會提升 50-100% 的銷售量</li>
+                    <li>• <strong>假日效應:</strong> 假日購物需求增加，會影響銷售預測</li>
+                    <li>• <strong>油價影響:</strong> 油價上升可能降低消費者購買力</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 批量預測頁面 -->
+        <div id="batchSection" class="content-section">
+            <div class="alert">
+                <div class="alert-title">⚠️ 注意事項</div>
+                <div class="alert-text">請上傳所有6個必要的CSV檔案。系統將自動處理資料並產生銷售預測。</div>
+            </div>
+
+            <div class="upload-grid">
+                <div class="upload-box" onclick="document.getElementById('trainFile').click()">
+                    <div class="upload-icon" id="trainIcon">📁</div>
+                    <label class="upload-label">訓練資料 (train.csv)</label>
+                    <div class="upload-status" id="trainStatus">點擊上傳</div>
+                    <input type="file" id="trainFile" accept=".csv" onchange="handleFileUpload('train', this)">
+                </div>
+
+                <div class="upload-box" onclick="document.getElementById('testFile').click()">
+                    <div class="upload-icon" id="testIcon">📁</div>
+                    <label class="upload-label">測試資料 (test.csv)</label>
+                    <div class="upload-status" id="testStatus">點擊上傳</div>
+                    <input type="file" id="testFile" accept=".csv" onchange="handleFileUpload('test', this)">
+                </div>
+
+                <div class="upload-box" onclick="document.getElementById('storesFile').click()">
+                    <div class="upload-icon" id="storesIcon">📁</div>
+                    <label class="upload-label">店鋪資料 (stores.csv)</label>
+                    <div class="upload-status" id="storesStatus">點擊上傳</div>
+                    <input type="file" id="storesFile" accept=".csv" onchange="handleFileUpload('stores', this)">
+                </div>
+
+                <div class="upload-box" onclick="document.getElementById('oilFile').click()">
+                    <div class="upload-icon" id="oilIcon">📁</div>
+                    <label class="upload-label">油價資料 (oil.csv)</label>
+                    <div class="upload-status" id="oilStatus">點擊上傳</div>
+                    <input type="file" id="oilFile" accept=".csv" onchange="handleFileUpload('oil', this)">
+                </div>
+
+                <div class="upload-box" onclick="document.getElementById('holidaysFile').click()">
+                    <div class="upload-icon" id="holidaysIcon">📁</div>
+                    <label class="upload-label">假日資料 (holidays_events.csv)</label>
+                    <div class="upload-status" id="holidaysStatus">點擊上傳</div>
+                    <input type="file" id="holidaysFile" accept=".csv" onchange="handleFileUpload('holidays', this)">
+                </div>
+
+                <div class="upload-box" onclick="document.getElementById('transactionsFile').click()">
+                    <div class="upload-icon" id="transactionsIcon">📁</div>
+                    <label class="upload-label">交易資料 (transactions.csv)</label>
+                    <div class="upload-status" id="transactionsStatus">點擊上傳</div>
+                    <input type="file" id="transactionsFile" accept=".csv" onchange="handleFileUpload('transactions', this)">
+                </div>
+            </div>
+
+            <button class="btn-primary" id="trainBtn" onclick="startTraining()" disabled>
+                🚀 開始訓練模型並預測
+            </button>
+        </div>
+
+        <!-- 分析結果頁面 -->
+        <div id="resultsSection" class="content-section">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">驗證 RMSE</div>
+                    <div class="stat-value" id="rmseValue">-</div>
+                    <div class="stat-desc">對數尺度</div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-label">訓練樣本</div>
+                    <div class="stat-value" id="trainSamples">-</div>
+                    <div class="stat-desc">筆資料</div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-label">預測樣本</div>
+                    <div class="stat-value" id="testSamples">-</div>
+                    <div class="stat-desc">筆預測</div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-label">模型類型</div>
+                    <div class="stat-value">隨機森林</div>
+                    <div class="stat-desc">500棵決策樹</div>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <div class="chart-title">🔮 銷售預測結果（前50筆）</div>
+                <div class="table-container">
+                    <table class="predictions-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>日期</th>
+                                <th>店鋪編號</th>
+                                <th>產品類別</th>
+                                <th>預測銷售額</th>
+                            </tr>
+                        </thead>
+                        <tbody id="predictionsTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <div class="chart-title">🎯 特徵重要性分析</div>
+                <ul class="feature-list" id="featureList"></ul>
+            </div>
+
+            <div class="chart-container">
+                <div class="chart-title">📅 週內銷售模式</div>
+                <canvas id="weeklyChart"></canvas>
+            </div>
+
+            <button class="btn-primary" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);" onclick="downloadSubmission()">
+                💾 下載完整預測結果 (CSV)
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // 初始化日期
+        const today = new Date().toISOString().split('T
